@@ -15,3 +15,6 @@ python data_shape_guard.py compare before.jsonl after.jsonl
 
 OSS: https://github.com/paper-daemon/data-shape-guard
 作者サイト: https://paper-daemon.github.io/
+
+## BOOTH
+0円配布: https://amase-memo.booth.pm/items/8778557
