@@ -1,0 +1,3 @@
+Data Shape Guard v1.0.0
+README.md を開いてください。
+OSS: https://github.com/paper-daemon/data-shape-guard

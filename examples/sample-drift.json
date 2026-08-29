@@ -1,0 +1,17 @@
+[
+  {
+    "path": "$.active",
+    "change": "added",
+    "severity": "info"
+  },
+  {
+    "path": "$.id",
+    "change": "types ['int'] → ['string']",
+    "severity": "high"
+  },
+  {
+    "path": "$.name",
+    "change": "required 100% → 50%",
+    "severity": "medium"
+  }
+]
