@@ -8,6 +8,7 @@ python data_shape_guard.py compare before.jsonl after.jsonl
 ```
 
 - ネストした object / array に対応
+- 通常keyは `$.field`、`.` / `[]` などを含むliteral keyは `$["a.b"]` のようにescapeしてpath衝突を避ける
 - 配列は先頭だけをsampleせず、全要素をshape推論へ含める
 - required 比率を実データから推定
 - HTML + JSON レポート
