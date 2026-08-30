@@ -22,3 +22,18 @@ class ArrayCoverageTests(unittest.TestCase):
         self.assertEqual(current['paths']['$.items[]']['types'], {'int':50, 'string':1})
         changes = compare(baseline,current)
         self.assertTrue(any(x['path']=='$.items[]' and x['severity']=='high' and 'types' in x['change'] for x in changes))
+
+class PathCollisionTests(unittest.TestCase):
+    def test_literal_dot_key_does_not_collide_with_nested_path(self):
+        shape = infer([{'a.b':1,'a':{'b':'nested'}}])
+        self.assertIn('$.a.b', shape['paths'])
+        self.assertIn('$["a.b"]', shape['paths'])
+        self.assertEqual(shape['paths']['$.a.b']['types'], {'string':1})
+        self.assertEqual(shape['paths']['$["a.b"]']['types'], {'int':1})
+
+    def test_literal_array_marker_key_does_not_collide_with_array_path(self):
+        shape = infer([{'items[]':'literal','items':[2]}])
+        self.assertIn('$.items[]', shape['paths'])
+        self.assertIn('$["items[]"]', shape['paths'])
+        self.assertEqual(shape['paths']['$.items[]']['types'], {'int':1})
+        self.assertEqual(shape['paths']['$["items[]"]']['types'], {'string':1})
