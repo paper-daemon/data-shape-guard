@@ -32,7 +32,7 @@ def walk(v, path, seen, stats):
         for k, x in v.items():
             walk(x, f'{path}.{k}' if path else k, seen, stats)
     elif isinstance(v, list):
-        for x in v[:50]:
+        for x in v:
             walk(x, f'{path}[]', seen, stats)
 
 def infer(records):
