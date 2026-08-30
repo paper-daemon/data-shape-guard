@@ -29,7 +29,9 @@ def strict_json_loads(text):
                 raise ValueError(f'duplicate JSON object key: {key}')
             out[key]=value
         return out
-    return json.loads(text, object_pairs_hook=unique_object)
+    def reject_constant(value):
+        raise ValueError(f'non-finite JSON number not allowed: {value}')
+    return json.loads(text, object_pairs_hook=unique_object, parse_constant=reject_constant)
 
 def load_records(path):
     text = Path(path).read_text(encoding='utf-8')
