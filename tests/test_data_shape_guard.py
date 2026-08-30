@@ -14,3 +14,11 @@ class T(unittest.TestCase):
         shape = infer([{'api_key':'abc123456789','name':'safe'}])
         self.assertEqual(shape['paths']['$.api_key']['examples'], ['<redacted>'])
         self.assertEqual(shape['paths']['$.name']['examples'], ['safe'])
+
+class ArrayCoverageTests(unittest.TestCase):
+    def test_type_change_after_first_50_array_items_is_detected(self):
+        baseline = infer([{'items':[1]*51}])
+        current = infer([{'items':[1]*50+['late-string']}])
+        self.assertEqual(current['paths']['$.items[]']['types'], {'int':50, 'string':1})
+        changes = compare(baseline,current)
+        self.assertTrue(any(x['path']=='$.items[]' and x['severity']=='high' and 'types' in x['change'] for x in changes))
