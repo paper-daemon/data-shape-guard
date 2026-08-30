@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-import argparse, json, html
+import argparse, json, html, re
 from pathlib import Path
+
+SECRET_PATH = re.compile(r'(?:^|[._-])(token|secret|password|passwd|api[_-]?key|authorization|cookie)(?:$|[._-])', re.I)
 
 def kind(v):
     if v is None: return 'null'
@@ -24,7 +26,8 @@ def walk(v, path, seen, stats):
     row = stats.setdefault(path, {'types':{}, 'present':0, 'examples':[]})
     t = kind(v); row['types'][t] = row['types'].get(t,0)+1
     if len(row['examples']) < 3 and not isinstance(v,(dict,list)):
-        row['examples'].append(str(v)[:80])
+        example = '<redacted>' if SECRET_PATH.search(path) else str(v)[:80]
+        row['examples'].append(example)
     if isinstance(v, dict):
         for k, x in v.items():
             walk(x, f'{path}.{k}' if path else k, seen, stats)
