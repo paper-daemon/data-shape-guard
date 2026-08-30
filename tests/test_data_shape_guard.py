@@ -9,3 +9,8 @@ class T(unittest.TestCase):
         text = ' | '.join(x['change'] for x in changes)
         self.assertIn('types', text)
         self.assertIn('required', text)
+
+    def test_secret_named_path_redacts_examples(self):
+        shape = infer([{'api_key':'abc123456789','name':'safe'}])
+        self.assertEqual(shape['paths']['$.api_key']['examples'], ['<redacted>'])
+        self.assertEqual(shape['paths']['$.name']['examples'], ['safe'])
