@@ -1,5 +1,6 @@
-import unittest
-from data_shape_guard import infer, compare
+import os, subprocess, tempfile, unittest
+from pathlib import Path
+from data_shape_guard import infer, compare, load_records
 
 class T(unittest.TestCase):
     def test_type_and_required_drift(self):
@@ -37,3 +38,27 @@ class PathCollisionTests(unittest.TestCase):
         self.assertIn('$["items[]"]', shape['paths'])
         self.assertEqual(shape['paths']['$.items[]']['types'], {'int':1})
         self.assertEqual(shape['paths']['$["items[]"]']['types'], {'string':1})
+
+
+class StrictJsonTests(unittest.TestCase):
+    def test_nonfinite_json_constants_are_rejected(self):
+        base = Path(tempfile.mkdtemp())
+        cases = [
+            ('nan.json', '[{"x":NaN}]', 'non-finite JSON number'),
+            ('inf.json', '[{"x":Infinity}]', 'non-finite JSON number'),
+            ('neg-inf.jsonl', '{"x":-Infinity}\n', 'line 1: non-finite JSON number'),
+        ]
+        for name, text, message in cases:
+            p = base / name; p.write_text(text)
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(ValueError, message):
+                    load_records(p)
+
+    def test_cli_fails_before_writing_reports_for_nonfinite_json(self):
+        base = Path(tempfile.mkdtemp())
+        src = base / 'bad.json'; src.write_text('[{"x":NaN}]')
+        json_out = base / 'shape.json'; html_out = base / 'shape.html'
+        cp = subprocess.run([os.sys.executable, 'data_shape_guard.py', 'infer', str(src), '--json', str(json_out), '--html', str(html_out)], text=True, capture_output=True)
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn('non-finite JSON number', cp.stderr)
+        self.assertFalse(json_out.exists()); self.assertFalse(html_out.exists())
