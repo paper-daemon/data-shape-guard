@@ -2,7 +2,7 @@
 import argparse, json, html, re, sys
 from pathlib import Path
 
-SECRET_PATH = re.compile(r'(?:^|[._-])(token|secret|password|passwd|api[_-]?key|authorization|cookie)(?:$|[._-])', re.I)
+SECRET_PATH = re.compile(r'(?:^|[^A-Za-z0-9])(token|secret|password|passwd|api[\s_-]?key|authorization|cookie)(?:$|[^A-Za-z0-9])', re.I)
 SIMPLE_KEY = re.compile(r'^[A-Za-z_][A-Za-z0-9_-]*$')
 
 def child_path(path, key):
