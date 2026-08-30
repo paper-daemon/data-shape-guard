@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, json, html, re
+import argparse, json, html, re, sys
 from pathlib import Path
 
 SECRET_PATH = re.compile(r'(?:^|[._-])(token|secret|password|passwd|api[_-]?key|authorization|cookie)(?:$|[._-])', re.I)
@@ -21,11 +21,26 @@ def kind(v):
     if isinstance(v, list): return 'array'
     return type(v).__name__
 
+def strict_json_loads(text):
+    def unique_object(pairs):
+        out={}
+        for key,value in pairs:
+            if key in out:
+                raise ValueError(f'duplicate JSON object key: {key}')
+            out[key]=value
+        return out
+    return json.loads(text, object_pairs_hook=unique_object)
+
 def load_records(path):
     text = Path(path).read_text(encoding='utf-8')
     if Path(path).suffix.lower() == '.jsonl':
-        return [json.loads(x) for x in text.splitlines() if x.strip()]
-    data = json.loads(text)
+        records=[]
+        for line_no,line in enumerate(text.splitlines(),1):
+            if not line.strip(): continue
+            try: records.append(strict_json_loads(line))
+            except ValueError as e: raise ValueError(f'line {line_no}: {e}') from e
+        return records
+    data = strict_json_loads(text)
     return data if isinstance(data, list) else [data]
 
 def walk(v, path, seen, stats):
@@ -86,8 +101,12 @@ def main():
     i=sub.add_parser('infer'); i.add_argument('file'); i.add_argument('--json',default='shape.json'); i.add_argument('--html',default='shape.html')
     c=sub.add_parser('compare'); c.add_argument('baseline'); c.add_argument('current'); c.add_argument('--json',default='shape-drift.json'); c.add_argument('--html',default='shape-drift.html')
     a=ap.parse_args()
-    if a.cmd=='infer':
-        r=infer(load_records(a.file)); Path(a.json).write_text(json.dumps(r,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(r),encoding='utf-8'); print(f"records={r['records']} paths={len(r['paths'])}")
-    else:
-        ra=infer(load_records(a.baseline)); rb=infer(load_records(a.current)); ch=compare(ra,rb); Path(a.json).write_text(json.dumps(ch,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(rb,ch),encoding='utf-8'); print(f'drift={len(ch)}')
-if __name__=='__main__': main()
+    try:
+        if a.cmd=='infer':
+            r=infer(load_records(a.file)); Path(a.json).write_text(json.dumps(r,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(r),encoding='utf-8'); print(f"records={r['records']} paths={len(r['paths'])}")
+        else:
+            ra=infer(load_records(a.baseline)); rb=infer(load_records(a.current)); ch=compare(ra,rb); Path(a.json).write_text(json.dumps(ch,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(rb,ch),encoding='utf-8'); print(f'drift={len(ch)}')
+    except (ValueError, json.JSONDecodeError) as e:
+        print(f'ERROR: {e}',file=sys.stderr); return 2
+    return 0
+if __name__=='__main__': raise SystemExit(main())
