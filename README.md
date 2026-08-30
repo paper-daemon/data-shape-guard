@@ -11,6 +11,7 @@ python data_shape_guard.py compare before.jsonl after.jsonl
 - 通常keyは `$.field`、`.` / `[]` などを含むliteral keyは `$["a.b"]` のようにescapeしてpath衝突を避ける
 - 配列は先頭だけをsampleせず、全要素をshape推論へ含める
 - JSON / JSONL は strict に読み、`NaN` / `Infinity` / `-Infinity` のような非標準・非finite数値を拒否する
+- `token` / `secret` / `password` / `api key` / `authorization` / `cookie` などsecret-likeなpathは、通常keyだけでなく空白や記号を含むbracket pathでもexample値を伏せる
 - required 比率を実データから推定
 - HTML + JSON レポート
 - Python 3.10+ / 外部依存なし / MIT
