@@ -3,6 +3,13 @@ import argparse, json, html, re
 from pathlib import Path
 
 SECRET_PATH = re.compile(r'(?:^|[._-])(token|secret|password|passwd|api[_-]?key|authorization|cookie)(?:$|[._-])', re.I)
+SIMPLE_KEY = re.compile(r'^[A-Za-z_][A-Za-z0-9_-]*$')
+
+def child_path(path, key):
+    key = str(key)
+    if SIMPLE_KEY.fullmatch(key):
+        return f'{path}.{key}' if path else key
+    return f'{path}[{json.dumps(key, ensure_ascii=False)}]' if path else json.dumps(key, ensure_ascii=False)
 
 def kind(v):
     if v is None: return 'null'
@@ -30,7 +37,7 @@ def walk(v, path, seen, stats):
         row['examples'].append(example)
     if isinstance(v, dict):
         for k, x in v.items():
-            walk(x, f'{path}.{k}' if path else k, seen, stats)
+            walk(x, child_path(path, k), seen, stats)
     elif isinstance(v, list):
         for x in v:
             walk(x, f'{path}[]', seen, stats)
