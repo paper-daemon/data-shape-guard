@@ -16,6 +16,12 @@ class T(unittest.TestCase):
         self.assertEqual(shape['paths']['$.api_key']['examples'], ['<redacted>'])
         self.assertEqual(shape['paths']['$.name']['examples'], ['safe'])
 
+    def test_bracketed_secret_like_keys_redact_examples(self):
+        shape = infer([{'api key':'abc123456789','auth token':'token-value','safe label':'visible'}])
+        self.assertEqual(shape['paths']['$["api key"]']['examples'], ['<redacted>'])
+        self.assertEqual(shape['paths']['$["auth token"]']['examples'], ['<redacted>'])
+        self.assertEqual(shape['paths']['$["safe label"]']['examples'], ['visible'])
+
 class ArrayCoverageTests(unittest.TestCase):
     def test_type_change_after_first_50_array_items_is_detected(self):
         baseline = infer([{'items':[1]*51}])
