@@ -4,6 +4,7 @@ from pathlib import Path
 
 SECRET_PATH = re.compile(r'(?:^|[^A-Za-z0-9])(token|secret|password|passwd|api[\s_-]?key|authorization|cookie)(?:$|[^A-Za-z0-9])', re.I)
 SIMPLE_KEY = re.compile(r'^[A-Za-z_][A-Za-z0-9_-]*$')
+SEVERITY_RANK = {'info': 1, 'medium': 2, 'high': 3}
 
 def child_path(path, key):
     key = str(key)
@@ -71,7 +72,9 @@ def infer(records):
         row['required_ratio'] = round(row['present']/total, 4) if total else 0
     return {'records': total, 'paths': stats}
 
-def compare(a, b):
+def compare(a, b, required_drift_threshold=.25):
+    if not 0 <= required_drift_threshold <= 1:
+        raise ValueError('required drift threshold must be between 0 and 1')
     out = []
     for p in sorted(set(a['paths']) | set(b['paths'])):
         x, y = a['paths'].get(p), b['paths'].get(p)
@@ -85,9 +88,17 @@ def compare(a, b):
         if xt != yt:
             out.append({'path':p,'change':f'types {sorted(xt)} → {sorted(yt)}','severity':'high'})
         drift = abs(x['required_ratio'] - y['required_ratio'])
-        if drift >= .25:
+        if drift >= required_drift_threshold and drift > 0:
             out.append({'path':p,'change':f"required {x['required_ratio']:.0%} → {y['required_ratio']:.0%}",'severity':'medium'})
     return out
+
+def should_fail(changes, fail_on):
+    if fail_on == 'never':
+        return False
+    if fail_on == 'any':
+        return bool(changes)
+    threshold = SEVERITY_RANK[fail_on]
+    return any(SEVERITY_RANK.get(x.get('severity'), 0) >= threshold for x in changes)
 
 def render(report, changes=None):
     if changes is None:
@@ -102,12 +113,16 @@ def main():
     ap=argparse.ArgumentParser(); sub=ap.add_subparsers(dest='cmd',required=True)
     i=sub.add_parser('infer'); i.add_argument('file'); i.add_argument('--json',default='shape.json'); i.add_argument('--html',default='shape.html')
     c=sub.add_parser('compare'); c.add_argument('baseline'); c.add_argument('current'); c.add_argument('--json',default='shape-drift.json'); c.add_argument('--html',default='shape-drift.html')
+    c.add_argument('--required-drift-threshold',type=float,default=.25,metavar='0..1',help='minimum required-ratio change to report (default: 0.25)')
+    c.add_argument('--fail-on',choices=('never','high','medium','any'),default='never',help='return exit code 1 when matching drift is found')
     a=ap.parse_args()
     try:
         if a.cmd=='infer':
             r=infer(load_records(a.file)); Path(a.json).write_text(json.dumps(r,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(r),encoding='utf-8'); print(f"records={r['records']} paths={len(r['paths'])}")
         else:
-            ra=infer(load_records(a.baseline)); rb=infer(load_records(a.current)); ch=compare(ra,rb); Path(a.json).write_text(json.dumps(ch,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(rb,ch),encoding='utf-8'); print(f'drift={len(ch)}')
+            ra=infer(load_records(a.baseline)); rb=infer(load_records(a.current)); ch=compare(ra,rb,a.required_drift_threshold)
+            Path(a.json).write_text(json.dumps(ch,ensure_ascii=False,indent=2)); Path(a.html).write_text(render(rb,ch),encoding='utf-8'); print(f'drift={len(ch)}')
+            if should_fail(ch,a.fail_on): return 1
     except (ValueError, json.JSONDecodeError) as e:
         print(f'ERROR: {e}',file=sys.stderr); return 2
     return 0
