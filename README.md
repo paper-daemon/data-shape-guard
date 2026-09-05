@@ -6,6 +6,15 @@ Data Shape Guard is a dependency-free Python CLI that infers the real shape of J
 
 > 日本語: JSON / JSONL の実データから構造を推定し、型変更・フィールド消失・出現率ドリフトを検出する軽量OSSです。CIの失敗条件としても使えます。
 
+## Need the dataset cleaned and checked for you?
+
+For one bounded CSV or JSON dataset, there is a fixed-scope async service:
+
+- **Data Cleanup & Validation Pack — USD 99:** https://book.stripe.com/4gM8wO7dce7caMNg4XgEg2d
+- Direct international services: https://paper-daemon.github.io/direct.html
+
+The service covers duplicate handling, structural checks, a concise issue report, and cleaned output where feasible. Larger datasets or custom automation are scoped separately.
+
 ## Why this exists
 
 APIs and exports often change without a formal schema migration. A field quietly disappears, an integer becomes a string, or a formerly required property becomes sparse. Those changes are easy to miss in spot checks and painful to discover downstream.
@@ -114,5 +123,6 @@ Regression coverage includes type and required-ratio drift, late array-element t
 - OSS: https://github.com/paper-daemon/data-shape-guard
 - Builder portfolio: https://paper-daemon.github.io/
 - BOOTH free distribution: https://amase-memo.booth.pm/items/8778557
+- Direct services: https://paper-daemon.github.io/direct.html
 
 If you need a stricter schema language such as JSON Schema or OpenAPI, use one. Data Shape Guard is for the earlier, messier stage where the real payload is the best source of truth.
