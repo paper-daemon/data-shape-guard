@@ -1,6 +1,6 @@
 import os, subprocess, tempfile, unittest
 from pathlib import Path
-from data_shape_guard import infer, compare, load_records
+from data_shape_guard import infer, compare, load_records, should_fail
 
 class T(unittest.TestCase):
     def test_type_and_required_drift(self):
@@ -10,6 +10,24 @@ class T(unittest.TestCase):
         text = ' | '.join(x['change'] for x in changes)
         self.assertIn('types', text)
         self.assertIn('required', text)
+
+    def test_required_drift_threshold_is_configurable(self):
+        a = infer([{'x':1},{'x':2},{'x':3},{'x':4}])
+        b = infer([{'x':1},{'x':2},{'x':3},{}])
+        self.assertFalse(any('required' in x['change'] for x in compare(a,b,.30)))
+        self.assertTrue(any('required' in x['change'] for x in compare(a,b,.20)))
+        with self.assertRaisesRegex(ValueError, 'between 0 and 1'):
+            compare(a,b,1.1)
+
+    def test_failure_policy_respects_severity(self):
+        changes = [
+            {'path':'$.new','change':'added','severity':'info'},
+            {'path':'$.optional','change':'required 100% → 50%','severity':'medium'},
+        ]
+        self.assertFalse(should_fail(changes,'never'))
+        self.assertFalse(should_fail(changes,'high'))
+        self.assertTrue(should_fail(changes,'medium'))
+        self.assertTrue(should_fail(changes,'any'))
 
     def test_secret_named_path_redacts_examples(self):
         shape = infer([{'api_key':'abc123456789','name':'safe'}])
@@ -45,7 +63,6 @@ class PathCollisionTests(unittest.TestCase):
         self.assertEqual(shape['paths']['$.items[]']['types'], {'int':1})
         self.assertEqual(shape['paths']['$["items[]"]']['types'], {'string':1})
 
-
 class StrictJsonTests(unittest.TestCase):
     def test_nonfinite_json_constants_are_rejected(self):
         base = Path(tempfile.mkdtemp())
@@ -68,3 +85,23 @@ class StrictJsonTests(unittest.TestCase):
         self.assertEqual(cp.returncode, 2)
         self.assertIn('non-finite JSON number', cp.stderr)
         self.assertFalse(json_out.exists()); self.assertFalse(html_out.exists())
+
+    def test_cli_ci_gate_writes_reports_then_fails_on_high(self):
+        base = Path(tempfile.mkdtemp())
+        before = base / 'before.json'; after = base / 'after.json'
+        before.write_text('[{"id":1}]'); after.write_text('[{"id":"1"}]')
+        json_out = base / 'drift.json'; html_out = base / 'drift.html'
+        cp = subprocess.run([
+            os.sys.executable, 'data_shape_guard.py', 'compare', str(before), str(after),
+            '--fail-on', 'high', '--json', str(json_out), '--html', str(html_out)
+        ], text=True, capture_output=True)
+        self.assertEqual(cp.returncode, 1)
+        self.assertTrue(json_out.exists()); self.assertTrue(html_out.exists())
+        self.assertIn('drift=', cp.stdout)
+
+    def test_cli_default_remains_report_only(self):
+        base = Path(tempfile.mkdtemp())
+        before = base / 'before.json'; after = base / 'after.json'
+        before.write_text('[{"id":1}]'); after.write_text('[{"id":"1"}]')
+        cp = subprocess.run([os.sys.executable, 'data_shape_guard.py', 'compare', str(before), str(after)], cwd='.', text=True, capture_output=True)
+        self.assertEqual(cp.returncode, 0)
